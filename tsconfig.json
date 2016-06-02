@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+        "target": "es5",
+        "outDir": "lib",
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "suppressImplicitAnyIndexErrors": true,
+        "noImplicitAny": true,
+        "noImplicitThis": true,
+        "declaration": true,
+        "noImplicitReturns": true,
+        "strictNullChecks": true,
+        "noEmit": true
+    },
+    "exclude": [
+        "node_modules",
+        "examples"
+    ]
+}

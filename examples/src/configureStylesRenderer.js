@@ -1,0 +1,11 @@
+import { registerPlugin } from '../..';
+import defaultUnitPlugin from '../../lib/plugins/default-unit';
+import extendsPlugin from '../../lib/plugins/extends';
+import mediaQueryPlugin from '../../lib/plugins/media-query';
+import nestedSelectorPlugin from '../../lib/plugins/nested-selector';
+import prefixer from '../../lib/plugins/prefixer';
+registerPlugin(defaultUnitPlugin());
+registerPlugin(extendsPlugin);
+registerPlugin(nestedSelectorPlugin);
+registerPlugin(mediaQueryPlugin);
+registerPlugin(prefixer);

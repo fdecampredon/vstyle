@@ -1,0 +1,26 @@
+{
+  "scripts": {
+    "start": "babel-node server.js",
+    "build": "browserify ./src/index.js > bundle.js"
+  },
+  "author": "",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "babel-cli": "^6.9.0"
+  },
+  "dependencies": {
+    "babelify": "^7.3.0",
+    "browserify": "^13.0.1",
+    "cssbeautify": "^0.3.1",
+    "react": "^15.1.0",
+    "react-dom": "^15.1.0",
+    "serialize-javascript": "^1.2.0"
+  },
+  "browserify": {
+    "transform": [
+      [
+        "babelify"
+      ]
+    ]
+  }
+}

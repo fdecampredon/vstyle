@@ -1,0 +1,11 @@
+{
+  "name": "vstyle",
+  "version": false,
+  "devDependencies": {
+    "sinon": "registry:npm/sinon#1.16.0+20160427193336",
+    "tape": "registry:npm/tape#4.0.0+20160322235547"
+  },
+  "globalDevDependencies": {
+    "node-4": "registry:dt/node-4#4.0.0+20160524002506"
+  }
+}

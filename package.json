@@ -1,0 +1,46 @@
+{
+  "name": "vstyle",
+  "version": "0.1.0",
+  "description": "A lib for managing styles with JavaScript.",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "scripts": {
+    "clean": "rm -rf typings && rm -rf lib/*",
+    "typings": "typings install",
+    "compile": "tsc -p ./tsconfig.lib.json",
+    "lint": "tslint -c tslint.json 'src/**/*.ts' 'tests/**/*.ts'",
+    "test": "typings install && tape -r ts-node/register 'tests/**/*-test.ts'",
+    "cover": "nyc --extension .ts npm test",
+    "build": "npm run clean && npm run typings && npm run compile",
+    "prepublish": "npm run build"
+  },
+  "keywords": [
+    "style",
+    "css",
+    "cssinjs"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fdecampredon/vstyle.git"
+  },
+  "author": "François de Campredon <francois.de.campredon@gmail.com> (https://github.com/fdecampredon)",
+  "bugs": {
+    "url": "https://github.com/fdecampredon/vstyle/issues"
+  },
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "cssom": "^0.3.1",
+    "nyc": "^6.4.3",
+    "sinon": "^1.17.3",
+    "tape": "^4.4.0",
+    "ts-node": "^0.7.2",
+    "tslint": "^3.9.0",
+    "typescript": "^1.9.0-dev.20160514",
+    "typings": "^1.0.4"
+  },
+  "dependencies": {
+    "inline-style-prefix-all": "^2.0.2",
+    "object-assign": "^4.1.0",
+    "typescript": "1.9.0-dev.20160530-1.0"
+  }
+}

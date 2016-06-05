@@ -19,6 +19,8 @@ import resolveStyles, { Basic } from './resolveStyles';
 import { getRule } from './RulesRegistry';
 import { RuleRendererState, RuleRenderer, createRuleRenderer } from './RuleRenderer';
 import { Indexable, RecursiveArray, Nullable } from './utils/types';
+import adler32 from './utils/adler32';
+import warning from './utils/warning';
 
 export type StylesRenderer = {
   renderStyles(...styles: (RecursiveArray<Basic> | Basic )[]): string;
@@ -30,10 +32,13 @@ export type StylesRenderer = {
 export type StylesRendererState = {
   rules: { rendererState: RuleRendererState, ruleId: string }[];
   classNameGeneratorKey: number;
+  checkSum: string;
 }
 
 export function createStylesRenderer(state?: StylesRendererState): StylesRenderer {
   let sheet: Nullable<CSSStyleSheet> = null;
+  let stringValue: Nullable<string> = null;
+
   const orderedRules: string[] = state ? state.rules.map(({ ruleId }) => ruleId) : [];
   const classNameGenerator = createClassNameGenerator(state && state.classNameGeneratorKey);
   const renderers: Indexable<RuleRenderer> = {};
@@ -61,6 +66,7 @@ export function createStylesRenderer(state?: StylesRendererState): StylesRendere
       if (!renderer) {
         renderer = renderers[rule.id] = createRuleRenderer(rule, orderedRules.length, classNameGenerator);
         orderedRules.push(rule.id);
+        stringValue = null;
       }
       
       const index = renderer.index();
@@ -70,7 +76,9 @@ export function createStylesRenderer(state?: StylesRendererState): StylesRendere
         maxRenderedIndex = index;
       }
       
-      renderer.setRuleOverrideCount(overrideCount);
+      if (renderer.setRuleOverrideCount(overrideCount)) {
+        stringValue = null;
+      }
       if (sheet) {
         renderer.attach(sheet);
       }
@@ -80,26 +88,43 @@ export function createStylesRenderer(state?: StylesRendererState): StylesRendere
   }
   
   function attach(styleElement: HTMLStyleElement): void {
-    if (!styleElement.sheet) {
-      styleElement.appendChild(document.createTextNode(' '));
-    }
     sheet = styleElement.sheet as CSSStyleSheet;
     if (state) {
-      let styleSheetIndex = 0;
-      for (const id of orderedRules) {
-        styleSheetIndex = renderers[id].connect(sheet, styleSheetIndex);
+      if (adler32(styleElement.textContent || '') !== state.checkSum) {
+        warning(
+          'VStyle attempted to reuse the styles inside the provided style element ' +
+          'but the checksum was invalid.');
+        styleElement.textContent = '';
+        sheet = styleElement.sheet as CSSStyleSheet;
+      } else {
+        let styleSheetIndex = 0;
+        for (const id of orderedRules) {
+          styleSheetIndex = renderers[id].connect(sheet, styleSheetIndex);
+        }
+        return;
       }
-    } else {
-      for (const id of orderedRules) {
-        renderers[id].attach(sheet);
-      }
+    } 
+
+    if (!state && sheet.cssRules.length) {
+      warning(
+        'The style element already contains styles, but no serialized state ' +
+        'has been provided to `createStylesRenderer`');
+      styleElement.textContent = '';
+      sheet = styleElement.sheet as CSSStyleSheet;
+    }
+
+    for (const id of orderedRules) {
+      renderers[id].attach(sheet);
     }
   }
   
   function renderToString(): string {
-    return orderedRules
-      .map(id => renderers[id].renderToString())
-      .join('');
+    if (!stringValue) {
+      stringValue = orderedRules
+        .map(id => renderers[id].renderToString())
+        .join('');
+    }
+    return stringValue;
   }
   
   function serialize(): StylesRendererState {
@@ -109,6 +134,7 @@ export function createStylesRenderer(state?: StylesRendererState): StylesRendere
         rendererState: renderers[ruleId].serialize(),
       })),
       classNameGeneratorKey: classNameGenerator.getCurrCSSKey(),
+      checkSum: adler32(renderToString()),
     };
   }
 

@@ -19,6 +19,9 @@ import { createStylesRenderer } from '../src/StylesRenderer';
 import * as ClassNameGenerator from '../src/ClassNameGenerator';
 import * as RuleRenderer from '../src/RuleRenderer';
 import * as RulesRegistry from '../src/RulesRegistry';
+import adler32 from '../src/utils/adler32';
+
+const cssom: any = require('cssom');
 
 function createRuleRenderersStub(t: Test) {
   const getRule = t.stub(RulesRegistry, 'getRule');
@@ -67,6 +70,7 @@ test('StylesRenderer createStylesRenderer', (t) => {
       { ruleId: '1', rendererState: { classNames: ['a', 'b'], index: 1 } },
       { ruleId: '2', rendererState: { classNames: ['c', 'd'], index: 2 } },
     ],
+    checkSum: '',
   };
   createStylesRenderer(state);
   t.calledWith(createClassNameGenerator, [2], 'should pass currCSSKey state to classNameGeneratorKey if state is provided');
@@ -84,6 +88,7 @@ test('StylesRenderer createStylesRenderer', (t) => {
 });
 
 test('StylesRenderer renderStyles', (t) => {
+  const sheet: CSSStyleSheet = new cssom.CSSStyleSheet();
   const getRule = t.stub(RulesRegistry, 'getRule');
   getRule
     .withArgs('rule1')
@@ -133,7 +138,7 @@ test('StylesRenderer renderStyles', (t) => {
   );
 
   t.notCalled(ruleRendererAttach, 'should not attach rule renderers if the styles renderer is not attached');
-  styleRenderer.attach({ sheet: {} } as any);
+  styleRenderer.attach({ sheet } as any);
   ruleRendererAttach.reset();
   styleRenderer.renderStyles(['rule1', 'rule2', 'rule3']);
   t.calledThrice(ruleRendererAttach, 'should try to attach the rules renderers if the styles renderer is attached');
@@ -146,6 +151,7 @@ test('StylesRenderer renderStyles', (t) => {
 
 test('StylesRenderer renderStyles', (t) => {
   const { ruleRendererAttach, ruleRendererSetRuleOverrideCount, createRuleRenderer } = createRuleRenderersStub(t);
+  const sheet: CSSStyleSheet = new cssom.CSSStyleSheet();
   const styleRenderer = createStylesRenderer();
 
   styleRenderer.renderStyles(['rule1', 'rule2', 'rule3']);
@@ -172,7 +178,7 @@ test('StylesRenderer renderStyles', (t) => {
   );
 
   t.notCalled(ruleRendererAttach, 'should not attach rule renderers if the styles renderer is not attached');
-  styleRenderer.attach({ sheet: {} } as any);
+  styleRenderer.attach({ sheet } as any);
   ruleRendererAttach.reset();
   styleRenderer.renderStyles(['rule1', 'rule2', 'rule3']);
   t.calledThrice(ruleRendererAttach, 'should try to attach the rules renderers if the styles renderer is attached');
@@ -185,24 +191,89 @@ test('StylesRenderer renderStyles', (t) => {
 
 test('StylesRenderer attach', t => {
   const { ruleRendererAttach, ruleRendererConnect, createRuleRenderer } = createRuleRenderersStub(t);
+  const setTextContentSpy = t.spy();
+  const consoleErrorSpy = t.spy(console, 'error');
+
+  let sheet: CSSStyleSheet = new cssom.CSSStyleSheet();
   let styleRenderer = createStylesRenderer();
   styleRenderer.renderStyles(['rule1', 'rule2', 'rule3']);
-  styleRenderer.attach({ sheet: {} } as any);
+  
+  styleRenderer.attach({ sheet } as any);
   t.calledThrice(ruleRendererAttach, 'should attach every rule renderer');
 
+  sheet.insertRule('a { text-decoration: none }', 0);
+  styleRenderer.attach({
+    sheet,
+    set textContent(value: string) {
+      setTextContentSpy(value);
+    },
+  } as any);
+  t.calledWith(
+    consoleErrorSpy,
+    [
+      'The style element already contains styles, but no serialized state ' +
+      'has been provided to `createStylesRenderer`',
+    ],
+    'should warn if sheet has already rules'
+  );
+  t.calledWith(
+    setTextContentSpy,
+    [''],
+    'should empty the style element if not empty'
+  );
+
   ruleRendererAttach.reset();
-  const state = {
+  styleRenderer = createStylesRenderer({
     classNameGeneratorKey: 2,
     rules: [
       { ruleId: 'rule1', rendererState: { classNames: ['a', 'b'], index: 1 } },
       { ruleId: 'rule2', rendererState: { classNames: ['c', 'd'], index: 2 } },
     ],
-  };
-  styleRenderer = createStylesRenderer(state);
-  styleRenderer.attach({ sheet: {} } as any);
+    checkSum: adler32('foo'),
+  });
+  styleRenderer.attach({ sheet, textContent: 'foo' } as any);
   t.ok(ruleRendererAttach.notCalled && ruleRendererConnect.calledTwice,
     'should connect every rule renderer if it contains prerendered state');
+  
+  ruleRendererConnect.reset();
+  ruleRendererAttach.reset();
+  setTextContentSpy.reset();
+  consoleErrorSpy.reset();
+  styleRenderer = createStylesRenderer({
+    classNameGeneratorKey: 2,
+    rules: [
+      { ruleId: 'rule1', rendererState: { classNames: ['a', 'b'], index: 1 } },
+      { ruleId: 'rule2', rendererState: { classNames: ['c', 'd'], index: 2 } },
+    ],
+    checkSum: adler32('foo'),
+  });
+  styleRenderer.attach({
+    sheet,
+    get textContent() {
+      return 'bar';
+    },
+    set textContent(value: string) {
+      setTextContentSpy(value);
+    },
+  } as any);
 
+  t.calledWith(
+    consoleErrorSpy,
+    [
+      'VStyle attempted to reuse the styles inside the provided style element ' +
+      'but the checksum was invalid.',
+    ],
+    'should warn if `textContent` of the style element does not match serialized state'
+  );
+  t.calledWith(
+    setTextContentSpy,
+    [''],
+    'should empty the style element if `textContent` of the style element does not match serialized state'
+  );
+  t.ok(ruleRendererAttach.calledTwice && ruleRendererConnect.notCalled,
+    'should not connect but attach rules renderer ' +
+    'if `textContent` of the style element does not match serialized state');
+  
   t.end();
 });
 
@@ -227,6 +298,7 @@ test('StylesRenderer serialize', t => {
       { ruleId: 'rule3', rendererState: { index: 2 } },
     ],
     classNameGeneratorKey: 0,
+    checkSum: adler32([0, 1, 2].map(index => `className${index}`).join('')),
   }, 'should return a serialized version of the styles renderer state');
 
   t.end();

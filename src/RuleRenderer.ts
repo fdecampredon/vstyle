@@ -24,7 +24,7 @@ export type RuleRenderer = {
   attach(sheet: CSSStyleSheet): void;
   connect(sheet: CSSStyleSheet, styleSheetIndex: number): number;
   renderToString(): string;
-  setRuleOverrideCount(overrideCount: number): void;
+  setRuleOverrideCount(overrideCount: number): boolean;
   getRuleClassNames(overrideCount: number): string[];
   serialize(): RuleRendererState
 }
@@ -119,7 +119,7 @@ export function createRuleRenderer(
     return result;
   }
 
-  function setRuleOverrideCount(count: number): void {
+  function setRuleOverrideCount(count: number): boolean {
     if (overrideCount < count) {
       for (let i = 0; i < (count - overrideCount); i++) {
         classNames.push(classNameGenerator.nextClassName());
@@ -132,7 +132,9 @@ export function createRuleRenderer(
         }
       }
       overrideCount = count;
+      return true;
     }
+    return false;
   }
 
   function getRuleClassNames(overrideCount: number): string[] {

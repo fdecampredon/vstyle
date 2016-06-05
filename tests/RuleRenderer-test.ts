@@ -133,8 +133,11 @@ test('RuleRenderer renderToString()', t => {
 
 test('RuleRenderer setOverrideCount', t => {
   let renderer = createRuleRenderer(rule, 1, createClassNameGenerator());
-  renderer.setRuleOverrideCount(1);
-
+  t.equal(renderer.setRuleOverrideCount(1), true,
+    'should return true if override count has been incremented');
+  t.equal(renderer.setRuleOverrideCount(1), false,
+    'should return false if override count has not been incremented');
+  
   t.equal(
     renderer.renderToString().replace(/\s/g, ''),
     [
